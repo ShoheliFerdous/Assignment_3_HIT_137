@@ -1,0 +1,95 @@
+import tkinter as tk
+from tkinter import filedialog, Label, Button
+from PIL import Image, ImageTk
+import tensorflow as tf
+import numpy as np
+
+# Encapsulation: Model class to handle AI model loading and prediction
+class Model:
+    def __init__(self, model_path):
+        self.model = tf.keras.models.load_model(model_path)
+    
+    def predict(self, image_path):
+        img = Image.open(image_path).resize((224, 224))
+        img_array = np.expand_dims(np.array(img) / 255.0, axis=0)
+        predictions = self.model.predict(img_array)
+        return np.argmax(predictions)
+
+# Multiple inheritance: Combining functionalities of Tkinter's Frame and Model class
+class App(tk.Frame, Model):
+    def __init__(self, parent, model_path):
+        tk.Frame.__init__(self, parent)
+        Model.__init__(self, model_path)
+        self.parent = parent
+        self.image_label = Label(self)
+        self.image_label.pack()
+        self.result_label = Label(self)
+        self.result_label.pack()
+        self.upload_button = Button(self, text="Upload Image", command=self.upload_image)
+        self.upload_button.pack()
+    
+    # Method overriding: Changing behavior of the default pack method
+    def pack(self, *args, **kwargs):
+        super().pack(*args, **kwargs)
+        self.parent.title("Image Classification App")
+
+    # Encapsulation: Private method to classify image
+    def __classify_image(self, image_path):
+        result = self.predict(image_path)
+        self.result_label.config(text=f"Prediction: {result}")
+
+    # Polymorphism: Different button actions based on input
+    def upload_image(self):
+        file_path = filedialog.askopenfilename()
+        if file_path:
+            self.display_image(file_path)
+            self.__classify_image(file_path)
+    
+    def display_image(self, image_path):
+        img = Image.open(image_path)
+        img = ImageTk.PhotoImage(img)
+        self.image_label.config(image=img)
+        self.image_label.image = img
+
+# Multiple decorators: Example of using multiple decorators in a method
+def logged_in(func):
+    def wrapper(*args, **kwargs):
+        print("User logged in")
+        return func(*args, **kwargs)
+    return wrapper
+
+def admin_access(func):
+    def wrapper(*args, **kwargs):
+        print("Admin access granted")
+        return func(*args, **kwargs)
+    return wrapper
+
+class AccessControl:
+    @logged_in
+    @admin_access
+    def access_resource(self):
+        print("Resource accessed")
+
+# Encapsulation: Separate class for encapsulation of the Tkinter main loop
+class Application:
+    def __init__(self, model_path):
+        self.root = tk.Tk()
+        self.app = App(self.root, model_path)
+        self.app.pack()
+    
+    def run(self):
+        self.root.mainloop()
+
+# Initialize the application
+if __name__ == "__main__":
+    # Download a pretrained MobileNetV2 model for demonstration
+    model = tf.keras.applications.MobileNetV2(weights='imagenet', include_top=True)
+    model.save("mobilenet_v2.h5")
+
+    app = Application("mobilenet_v2.h5")
+    app.run()
+
+    # Demonstrate the AccessControl class
+    access_control = AccessControl()
+    access_control.access_resource()
+

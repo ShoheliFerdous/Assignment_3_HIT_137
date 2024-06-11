@@ -1,0 +1,166 @@
+import pygame
+import random
+
+# Initialize Pygame
+pygame.init()
+
+# Constants
+SCREEN_WIDTH, SCREEN_HEIGHT = 800, 600
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+
+# Set up display
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+pygame.display.set_caption("Side-Scrolling Game")
+
+# Clock for FPS control
+clock = pygame.time.Clock()
+FPS = 60
+class Player(pygame.sprite.Sprite):
+    def __init__(self):
+        super().__init__()
+        self.image = pygame.Surface((50, 50))
+        self.image.fill((0, 128, 255))
+        self.rect = self.image.get_rect()
+        self.rect.x = 100
+        self.rect.y = SCREEN_HEIGHT - self.rect.height
+        self.speed = 5
+        self.jump_power = 15
+        self.gravity = 1
+        self.velocity_y = 0
+        self.health = 100
+        self.lives = 3
+
+    def update(self):
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_LEFT]:
+            self.rect.x -= self.speed
+        if keys[pygame.K_RIGHT]:
+            self.rect.x += self.speed
+        if keys[pygame.K_SPACE] and self.rect.bottom >= SCREEN_HEIGHT:
+            self.velocity_y = -self.jump_power
+        
+        # Apply gravity
+        self.velocity_y += self.gravity
+        self.rect.y += self.velocity_y
+
+        # Prevent falling through the floor
+        if self.rect.bottom >= SCREEN_HEIGHT:
+            self.rect.bottom = SCREEN_HEIGHT
+            self.velocity_y = 0
+
+    def shoot(self):
+        bullet = Projectile(self.rect.centerx, self.rect.top)
+        return bullet
+class Projectile(pygame.sprite.Sprite):
+    def __init__(self, x, y):
+        super().__init__()
+        self.image = pygame.Surface((10, 10))
+        self.image.fill((255, 0, 0))
+        self.rect = self.image.get_rect()
+        self.rect.centerx = x
+        self.rect.centery = y
+        self.speed = 10
+
+    def update(self):
+        self.rect.x += self.speed
+        if self.rect.left > SCREEN_WIDTH:
+            self.kill()
+class Enemy(pygame.sprite.Sprite):
+    def __init__(self, x, y):
+        super().__init__()
+        self.image = pygame.Surface((50, 50))
+        self.image.fill((255, 0, 0))
+        self.rect = self.image.get_rect()
+        self.rect.x = x
+        self.rect.y = y
+        self.speed = 2
+        self.health = 50
+
+    def update(self):
+        self.rect.x -= self.speed
+        if self.rect.right < 0:
+            self.kill()
+class Collectible(pygame.sprite.Sprite):
+    def __init__(self, x, y, kind):
+        super().__init__()
+        self.image = pygame.Surface((30, 30))
+        if kind == "health":
+            self.image.fill((0, 255, 0))
+        elif kind == "life":
+            self.image.fill((0, 0, 255))
+        self.rect = self.image.get_rect()
+        self.rect.x = x
+        self.rect.y = y
+        self.kind = kind
+
+    def update(self):
+        pass  # Collectibles don't move in this example
+def main():
+    running = True
+    player = Player()
+    player_group = pygame.sprite.Group(player)
+    projectiles = pygame.sprite.Group()
+    enemies = pygame.sprite.Group()
+    collectibles = pygame.sprite.Group()
+
+    score = 0
+
+    # Sample level with enemies and collectibles
+    for i in range(5):
+        enemy = Enemy(SCREEN_WIDTH + i * 200, SCREEN_HEIGHT - 50)
+        enemies.add(enemy)
+    for i in range(3):
+        collectible = Collectible(SCREEN_WIDTH + i * 300, SCREEN_HEIGHT - 50, "health")
+        collectibles.add(collectible)
+
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_f:
+                    bullet = player.shoot()
+                    projectiles.add(bullet)
+
+        player_group.update()
+        projectiles.update()
+        enemies.update()
+        collectibles.update()
+
+        # Collision detection
+        for bullet in projectiles:
+            hit_enemies = pygame.sprite.spritecollide(bullet, enemies, True)
+            for enemy in hit_enemies:
+                bullet.kill()
+                score += 10
+        
+        collected_items = pygame.sprite.spritecollide(player, collectibles, True)
+        for item in collected_items:
+            if item.kind == "health":
+                player.health += 20
+            elif item.kind == "life":
+                player.lives += 1
+
+        screen.fill(WHITE)
+        player_group.draw(screen)
+        projectiles.draw(screen)
+        enemies.draw(screen)
+        collectibles.draw(screen)
+
+        # Draw HUD
+        font = pygame.font.SysFont(None, 36)
+        score_text = font.render(f'Score: {score}', True, BLACK)
+        health_text = font.render(f'Health: {player.health}', True, BLACK)
+        lives_text = font.render(f'Lives: {player.lives}', True, BLACK)
+        screen.blit(score_text, (10, 10))
+        screen.blit(health_text, (10, 50))
+        screen.blit(lives_text, (10, 90))
+
+        pygame.display.flip()
+        clock.tick(FPS)
+
+    pygame.quit()
+
+if __name__ == "__main__":
+    main()
